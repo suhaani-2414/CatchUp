@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CatchUp – Class Updates</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <!-- FLOATING NOTE PAPERS -->
+  <div class="note-paper"></div>
+  <div class="note-paper"></div>
+  <div class="note-paper"></div>
+  <div class="note-paper"></div>
+  <div class="note-paper"></div>
+  <div class="note-paper"></div>
+  
+  <!-- FLOATING BUBBLES -->
+  <div class="bubble"></div>
+  <div class="bubble"></div>
+  <div class="bubble"></div>
+  <div class="bubble"></div>
+  <div class="bubble"></div>
+
+  <div class="page">
+    <header class="header">
+      <h1 class="brand">CatchUp</h1>
+    </header>
+
+    <main class="main">
+      <!-- TOP BAR -->
+      <section class="card">
+        <div class="class-top">
+          <div class="class-title">
+            <h2 class="course-name">
+              <span id="course-name">Course name</span>
+              —
+              <span id="day-label">Today</span>
+            </h2>
+            <p class="course-meta">
+              University of Maryland, Baltimore County.
+              <span id="course-semester">Semester</span>
+            </p>
+          </div>
+
+          <div class="class-actions">
+            <a href="index.html" class="btn btn-secondary">Change class</a>
+            <a href="post.html" class="btn btn-primary">Post an update</a>
+          </div>
+        </div>
+      </section>
+
+      <!-- FEED -->
+      <section class="card card--feed">
+        <div class="feed-header">
+          <h3 class="feed-title">Latest updates</h3>
+          <p class="feed-meta">
+            Stay updated with the latest news and announcements for this class anonymously.
+          </p>
+        </div>
+
+        <div class="feed" id="feed">
+          <!-- Updates will be dynamically inserted here -->
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+  
+  <script src="main.js"></script>
+</body> 
+</html>

@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CatchUp – Post an Update</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <!-- FLOATING NOTE PAPERS -->
+  <div class="note-paper"></div>
+  <div class="note-paper"></div>
+  <div class="note-paper"></div>
+  <div class="note-paper"></div>
+  <div class="note-paper"></div>
+  <div class="note-paper"></div>
+  
+  <!-- FLOATING BUBBLES -->
+  <div class="bubble"></div>
+  <div class="bubble"></div>
+  <div class="bubble"></div>
+  <div class="bubble"></div>
+  <div class="bubble"></div>
+
+  <div class="page">
+    <header class="header">
+      <h1 class="brand">CatchUp</h1>
+    </header>
+
+    <main class="main">
+      <section class="card card--center">
+        <div class="intro">
+          <p class="tagline">Post a new class update</p>
+          <p class="description">
+            Share what happened in class today so others can catch up. Your name will not be shown.
+          </p>
+        </div>
+
+        <p class="post-context">
+          Posting for: <span id="post-course-name">Course name</span>
+          <span class="dot">•</span>
+          <span id="post-day-label">Today</span>
+        </p>
+
+        <form id="post-form">
+          <!-- Topic -->
+          <div class="form-row">
+            <label for="topic">Topic</label>
+            <select id="topic" name="topic" required>
+              <option value="">Select a topic</option>
+              <option value="attendance">Attendance</option>
+              <option value="exam-info">Exam info</option>
+              <option value="homework">Homework</option>
+              <option value="lecture-notes">Lecture summary</option>
+              <option value="announcement">Announcement</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+
+          <!-- Importance -->
+          <div class="form-row">
+            <label for="importance">
+              How important was this class?
+              <span class="field-hint">(1 = chill, 5 = must-see)</span>
+            </label>
+            <select id="importance" name="importance" required>
+              <option value="">Select importance</option>
+              <option value="1">⭐ Not too important</option>
+              <option value="2">⭐⭐ A little important</option>
+              <option value="3">⭐⭐⭐ Medium</option>
+              <option value="4">⭐⭐⭐⭐ Very important</option>
+              <option value="5">⭐⭐⭐⭐⭐ Critical</option>
+            </select>
+          </div>
+
+          <!-- Text -->
+          <div class="form-row">
+            <label for="update-text">What happened in class?</label>
+            <textarea
+              id="update-text"
+              name="text"
+              rows="5"
+              placeholder="Example: Prof took attendance, announced Quiz 2 for next week, and finished Chapter 5 examples..."
+              required
+            ></textarea>
+          </div>
+
+          <!-- Buttons -->
+          <div class="form-row form-row--buttons">
+            <a href="class.html" class="btn btn-secondary">Cancel</a>
+            <button type="submit" class="btn btn-primary">
+              Post update
+            </button>
+          </div>
+
+          <p class="post-hint">
+            Your update will be posted anonymously. Only you can edit or delete your own updates.
+          </p>
+        </form>
+      </section>
+    </main>
+  </div>
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+  
+  <script src="main.js"></script>
+</body>
+</html>
