@@ -129,38 +129,62 @@ function initClassPage() {
   loadUpdatesFromFirebase(course);
 }
 
-function loadUpdatesFromFirebase(course) {
-  const feedElement = document.getElementById('feed');
+function loadLatestUpdates(myClasses) {
+  const feedElement = document.getElementById('latest-feed');
   const currentUserId = getUserId();
-  const professor = localStorage.getItem('catchup_professor') || '';
-  
-  feedElement.innerHTML = '<p style="text-align: center; color: var(--text-muted); padding: 40px 0;">Loading updates...</p>';
-  
-  let query = db.collection('updates').where('course', '==', course);
-  
-  // Filter by professor if specified
-  if (professor) {
-    query = query.where('professor', '==', professor);
-  }
-  
-  query.orderBy('createdAt', 'desc')
-    .onSnapshot((snapshot) => {
-      feedElement.innerHTML = '';
-      
-      if (snapshot.empty) {
-        feedElement.innerHTML = '<p style="text-align: center; color: var(--text-muted); padding: 40px 0;">No updates yet. Be the first to post!</p>';
-        return;
+
+  const courseCodes = [...new Set(myClasses.map((c) => c.course))];
+
+  db.collection('updates')
+    .where('course', 'in', courseCodes.slice(0, 10)) // only filter here
+    .onSnapshot(
+      (snapshot) => {
+        const allUpdates = [];
+
+        snapshot.forEach((doc) => {
+          const update = { id: doc.id, ...doc.data() };
+          allUpdates.push(update);
+        });
+
+        // Filter by professor + course based on saved classes
+        const filtered = allUpdates.filter((update) => {
+          const match = myClasses.find((c) => {
+            if (c.professor && update.professor) {
+              return (
+                c.course === update.course &&
+                c.professor === update.professor
+              );
+            }
+            return c.course === update.course;
+          });
+          return Boolean(match);
+        });
+
+        // Sort newest → oldest
+        filtered.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+
+        // Optional: keep only top 50
+        const top = filtered.slice(0, 50);
+
+        feedElement.innerHTML = '';
+
+        if (top.length === 0) {
+          feedElement.innerHTML =
+            '<p style="text-align: center; color: var(--text-muted); padding: 40px 0;">No updates yet for your classes!</p>';
+          return;
+        }
+
+        top.forEach((update) => {
+          const card = createUpdateCard(update, currentUserId);
+          feedElement.appendChild(card);
+        });
+      },
+      (error) => {
+        console.error('Error loading updates:', error);
+        feedElement.innerHTML =
+          '<p style="text-align: center; color: red; padding: 40px 0;">Error loading updates. Please refresh the page.</p>';
       }
-      
-      snapshot.forEach((doc) => {
-        const update = { id: doc.id, ...doc.data() };
-        const updateCard = createUpdateCard(update, currentUserId);
-        feedElement.appendChild(updateCard);
-      });
-    }, (error) => {
-      console.error('Error loading updates:', error);
-      feedElement.innerHTML = '<p style="text-align: center; color: red; padding: 40px 0;">Error loading updates. Please refresh the page.</p>';
-    });
+    );
 }
 
 function createUpdateCard(update, currentUserId) {
