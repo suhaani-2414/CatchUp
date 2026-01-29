@@ -88,20 +88,17 @@ function initIndexPage() {
     
     const university = document.getElementById('university-select').value;
     const courseCode = document.getElementById('course-input').value.trim();
-    const professor = document.getElementById('professor-input') ? document.getElementById('professor-input').value.trim() : '';
     
     if (!university || !courseCode) {
       alert('Please select a university and enter a course code');
       return;
     }
     
+    // NORMALIZE: Remove spaces and convert to uppercase
     const normalizedCourse = courseCode.replace(/\s+/g, '').toUpperCase();
-    const normalizedProfessor = professor.trim();
     
     localStorage.setItem('catchup_university', university);
     localStorage.setItem('catchup_course', normalizedCourse);
-    localStorage.setItem('catchup_professor', normalizedProfessor);
-    
     window.location.href = 'class.html';
   });
 }
@@ -129,62 +126,32 @@ function initClassPage() {
   loadUpdatesFromFirebase(course);
 }
 
-function loadLatestUpdates(myClasses) {
-  const feedElement = document.getElementById('latest-feed');
+function loadUpdatesFromFirebase(course) {
+  const feedElement = document.getElementById('feed');
   const currentUserId = getUserId();
-
-  const courseCodes = [...new Set(myClasses.map((c) => c.course))];
-
+  
+  feedElement.innerHTML = '<p style="text-align: center; color: var(--text-muted); padding: 40px 0;">Loading updates...</p>';
+  
   db.collection('updates')
-    .where('course', 'in', courseCodes.slice(0, 10)) // only filter here
-    .onSnapshot(
-      (snapshot) => {
-        const allUpdates = [];
-
-        snapshot.forEach((doc) => {
-          const update = { id: doc.id, ...doc.data() };
-          allUpdates.push(update);
-        });
-
-        // Filter by professor + course based on saved classes
-        const filtered = allUpdates.filter((update) => {
-          const match = myClasses.find((c) => {
-            if (c.professor && update.professor) {
-              return (
-                c.course === update.course &&
-                c.professor === update.professor
-              );
-            }
-            return c.course === update.course;
-          });
-          return Boolean(match);
-        });
-
-        // Sort newest → oldest
-        filtered.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
-
-        // Optional: keep only top 50
-        const top = filtered.slice(0, 50);
-
-        feedElement.innerHTML = '';
-
-        if (top.length === 0) {
-          feedElement.innerHTML =
-            '<p style="text-align: center; color: var(--text-muted); padding: 40px 0;">No updates yet for your classes!</p>';
-          return;
-        }
-
-        top.forEach((update) => {
-          const card = createUpdateCard(update, currentUserId);
-          feedElement.appendChild(card);
-        });
-      },
-      (error) => {
-        console.error('Error loading updates:', error);
-        feedElement.innerHTML =
-          '<p style="text-align: center; color: red; padding: 40px 0;">Error loading updates. Please refresh the page.</p>';
+    .where('course', '==', course)
+    .orderBy('createdAt', 'desc')
+    .onSnapshot((snapshot) => {
+      feedElement.innerHTML = '';
+      
+      if (snapshot.empty) {
+        feedElement.innerHTML = '<p style="text-align: center; color: var(--text-muted); padding: 40px 0;">No updates yet. Be the first to post!</p>';
+        return;
       }
-    );
+      
+      snapshot.forEach((doc) => {
+        const update = { id: doc.id, ...doc.data() };
+        const updateCard = createUpdateCard(update, currentUserId);
+        feedElement.appendChild(updateCard);
+      });
+    }, (error) => {
+      console.error('Error loading updates:', error);
+      feedElement.innerHTML = '<p style="text-align: center; color: red; padding: 40px 0;">Error loading updates. Please refresh the page.</p>';
+    });
 }
 
 function createUpdateCard(update, currentUserId) {
@@ -193,7 +160,6 @@ function createUpdateCard(update, currentUserId) {
   article.dataset.updateId = update.id;
   
   const isOwner = update.authorId === currentUserId;
-  const hasLiked = (update.likedBy || []).includes(currentUserId);
   
   article.innerHTML = `
     <div class="update-top">
@@ -218,9 +184,9 @@ function createUpdateCard(update, currentUserId) {
       </div>
       
       <div class="update-actions">
-        <button class="update-like" data-id="${update.id}" style="${hasLiked ? 'color: #d32f2f;' : ''}">
-          ${hasLiked ? '❤️ Unlike' : '🤍 Like'} (${update.likes || 0})
-        </button>
+        <button class="update-like" data-id="${update.id}" ${(update.likedBy || []).includes(currentUserId) ? 'disabled style="opacity: 0.5; cursor: not-allowed;"' : ''}>
+  ${(update.likedBy || []).includes(currentUserId) ? '❤️ Liked' : 'Like'} (${update.likes || 0})
+</button>
         <button class="update-share" data-id="${update.id}">Share</button>
         ${isOwner ? `
           <button class="update-edit" data-id="${update.id}">Edit</button>
@@ -247,6 +213,7 @@ function handleLike(updateId) {
   const currentUserId = getUserId();
   const updateRef = db.collection('updates').doc(updateId);
   
+  // Get the update document first
   updateRef.get().then((doc) => {
     if (!doc.exists) {
       alert('Update not found');
@@ -254,28 +221,22 @@ function handleLike(updateId) {
     }
     
     const update = doc.data();
-    const likedBy = update.likedBy || []; 
-   
-    // Check if user already liked - if so, UNLIKE
+    const likedBy = update.likedBy || []; // Array of user IDs who liked
+    
+    // Check if user already liked this post
     if (likedBy.includes(currentUserId)) {
-      // Unlike: remove user from array and decrement likes
-      updateRef.update({
-        likes: firebase.firestore.FieldValue.increment(-1),
-        likedBy: firebase.firestore.FieldValue.arrayRemove(currentUserId)
-      }).catch((error) => {
-        console.error('Error unliking update:', error);
-        alert('Could not unlike update. Please try again.');
-      });
-    } else {
-      // Like: add user to array and increment likes
-      updateRef.update({
-        likes: firebase.firestore.FieldValue.increment(1),
-        likedBy: firebase.firestore.FieldValue.arrayUnion(currentUserId)
-      }).catch((error) => {
-        console.error('Error liking update:', error);
-        alert('Could not like update. Please try again.');
-      });
+      alert('You already liked this update!');
+      return;
     }
+    
+    // Add user to likedBy array and increment likes
+    updateRef.update({
+      likes: firebase.firestore.FieldValue.increment(1),
+      likedBy: firebase.firestore.FieldValue.arrayUnion(currentUserId)
+    }).catch((error) => {
+      console.error('Error liking update:', error);
+      alert('Could not like update. Please try again.');
+    });
   }).catch((error) => {
     console.error('Error getting update:', error);
   });
@@ -363,14 +324,12 @@ function initPostPage() {
   if (!postForm) return;
   
   const course = localStorage.getItem('catchup_course');
-  const professor = localStorage.getItem('catchup_professor') || '';
-  
   if (!course) {
     window.location.href = 'index.html';
     return;
   }
   
-  document.getElementById('post-course-name').textContent = course + (professor ? ` (Prof. ${professor})` : '');
+  document.getElementById('post-course-name').textContent = course;
   document.getElementById('post-day-label').textContent = 'Today';
   
   postForm.addEventListener('submit', function(e) {
@@ -387,15 +346,13 @@ function initPostPage() {
     
     const currentUserId = getUserId();
     const newUpdate = {
-      course: course,
-      professor: professor || null,
+      course: course, // Already normalized from initIndexPage
       topic: topic,
       importance: importance,
       text: text,
       createdAt: Date.now(),
       authorId: currentUserId,
-      likes: 0,
-      likedBy: []
+      likes: 0
     };
     
     const submitBtn = postForm.querySelector('button[type="submit"]');
@@ -414,225 +371,6 @@ function initPostPage() {
       });
   });
 }
-
-// ============================================
-// MY CLASSES MANAGEMENT
-// ============================================
-
-function getMyClasses() {
-  const classesJSON = localStorage.getItem('my_classes');
-  return classesJSON ? JSON.parse(classesJSON) : [];
-}
-
-function saveMyClasses(classes) {
-  localStorage.setItem('my_classes', JSON.stringify(classes));
-}
-
-function addClass(course, professor) {
-  const classes = getMyClasses();
-  const normalizedCourse = course.replace(/\s+/g, '').toUpperCase();
-  const normalizedProfessor = professor ? professor.trim() : null;
-  
-  // Check if class already exists
-  const exists = classes.some(c => 
-    c.course === normalizedCourse && c.professor === normalizedProfessor
-  );
-  
-  if (exists) {
-    alert('This class is already in your list!');
-    return false;
-  }
-  
-  classes.push({
-    course: normalizedCourse,
-    professor: normalizedProfessor,
-    addedAt: Date.now()
-  });
-  
-  saveMyClasses(classes);
-  return true;
-}
-
-function removeClass(course, professor) {
-  let classes = getMyClasses();
-  classes = classes.filter(c => 
-    !(c.course === course && c.professor === professor)
-  );
-  saveMyClasses(classes);
-}
-
-// ============================================
-// MY CLASSES PAGE (my-classes.html)
-// ============================================
-
-function initMyClassesPage() {
-  const addClassForm = document.getElementById('add-class-form');
-  const myClassesList = document.getElementById('my-classes-list');
-  
-  if (!addClassForm || !myClassesList) return;
-  
-  // Handle add class form
-  addClassForm.addEventListener('submit', function(e) {
-    e.preventDefault();
-    
-    const course = document.getElementById('new-course-input').value.trim();
-    const professor = document.getElementById('new-professor-input').value.trim();
-    
-    if (!course) {
-      alert('Please enter a course code');
-      return;
-    }
-    
-    if (addClass(course, professor || null)) {
-      document.getElementById('new-course-input').value = '';
-      document.getElementById('new-professor-input').value = '';
-      renderMyClasses();
-    }
-  });
-  
-  // Initial render
-  renderMyClasses();
-}
-
-function renderMyClasses() {
-  const myClassesList = document.getElementById('my-classes-list');
-  if (!myClassesList) return;
-  
-  const classes = getMyClasses();
-  
-  if (classes.length === 0) {
-    myClassesList.innerHTML = `
-      <p style="text-align: center; color: var(--text-muted); padding: 40px 0;">
-        No classes added yet. Add your first class above!
-      </p>
-    `;
-    return;
-  }
-  
-  myClassesList.innerHTML = '';
-  
-  classes.forEach(classItem => {
-    const classCard = document.createElement('div');
-    classCard.className = 'update';
-    classCard.style.cursor = 'pointer';
-    
-    classCard.innerHTML = `
-      <div style="display: flex; justify-content: space-between; align-items: center;">
-        <div>
-          <h3 style="margin: 0; font-size: 18px; color: var(--text-main);">${classItem.course}</h3>
-          ${classItem.professor ? `<p style="margin: 4px 0 0; font-size: 13px; color: var(--text-muted);">Prof. ${classItem.professor}</p>` : ''}
-        </div>
-        <div style="display: flex; gap: 10px;">
-          <button class="btn btn-secondary view-class-btn" data-course="${classItem.course}" data-professor="${classItem.professor || ''}">
-            View Updates
-          </button>
-          <button class="btn btn-secondary remove-class-btn" data-course="${classItem.course}" data-professor="${classItem.professor || ''}" style="background: rgba(255, 0, 0, 0.1); color: #d32f2f;">
-            Remove
-          </button>
-        </div>
-      </div>
-    `;
-    
-    myClassesList.appendChild(classCard);
-  });
-  
-  // Add event listeners
-  document.querySelectorAll('.view-class-btn').forEach(btn => {
-    btn.addEventListener('click', function() {
-      const course = this.dataset.course;
-      const professor = this.dataset.professor;
-      
-      localStorage.setItem('catchup_university', 'university1');
-      localStorage.setItem('catchup_course', course);
-      localStorage.setItem('catchup_professor', professor || '');
-      
-      window.location.href = 'class.html';
-    });
-  });
-  
-  document.querySelectorAll('.remove-class-btn').forEach(btn => {
-    btn.addEventListener('click', function() {
-      const course = this.dataset.course;
-      const professor = this.dataset.professor || null;
-      
-      if (confirm(`Remove ${course}${professor ? ` (Prof. ${professor})` : ''} from your classes?`)) {
-        removeClass(course, professor);
-        renderMyClasses();
-      }
-    });
-  });
-}
-
-// ============================================
-// LATEST UPDATES PAGE (latest.html)
-// ============================================
-
-function initLatestPage() {
-  const feedElement = document.getElementById('latest-feed');
-  if (!feedElement) return;
-  
-  const myClasses = getMyClasses();
-  
-  if (myClasses.length === 0) {
-    feedElement.innerHTML = `
-      <p style="text-align: center; color: var(--text-muted); padding: 40px 0;">
-        No classes added yet. <a href="my-classes.html">Add classes</a> to see updates here!
-      </p>
-    `;
-    return;
-  }
-  
-  feedElement.innerHTML = '<p style="text-align: center; color: var(--text-muted); padding: 40px 0;">Loading updates...</p>';
-  
-  loadLatestUpdates(myClasses);
-}
-
-function loadLatestUpdates(myClasses) {
-  const feedElement = document.getElementById('latest-feed');
-  const currentUserId = getUserId();
-  
-  // Get unique course codes
-  const courseCodes = [...new Set(myClasses.map(c => c.course))];
-  
-  // Query for all updates from user's classes
-  db.collection('updates')
-    .where('course', 'in', courseCodes.slice(0, 10)) // Firebase limits 'in' queries to 10
-    .orderBy('createdAt', 'desc')
-    .limit(50)
-    .onSnapshot((snapshot) => {
-      feedElement.innerHTML = '';
-      
-      if (snapshot.empty) {
-        feedElement.innerHTML = '<p style="text-align: center; color: var(--text-muted); padding: 40px 0;">No updates yet for your classes!</p>';
-        return;
-      }
-      
-      snapshot.forEach((doc) => {
-        const update = { id: doc.id, ...doc.data() };
-        
-        // Filter by professor if specified
-        const classMatch = myClasses.find(c => {
-          if (c.professor && update.professor) {
-            return c.course === update.course && c.professor === update.professor;
-          }
-          return c.course === update.course;
-        });
-        
-        if (classMatch) {
-          const updateCard = createUpdateCard(update, currentUserId);
-          feedElement.appendChild(updateCard);
-        }
-      });
-      
-      if (feedElement.children.length === 0) {
-        feedElement.innerHTML = '<p style="text-align: center; color: var(--text-muted); padding: 40px 0;">No updates yet for your classes!</p>';
-      }
-    }, (error) => {
-      console.error('Error loading updates:', error);
-      feedElement.innerHTML = '<p style="text-align: center; color: red; padding: 40px 0;">Error loading updates. Please refresh the page.</p>';
-    });
-}
-
 // ============================================
 // INITIALIZE APP
 // ============================================
@@ -641,8 +379,6 @@ function initApp() {
   initIndexPage();
   initClassPage();
   initPostPage();
-  initMyClassesPage();
-  initLatestPage();
 }
 
 if (document.readyState === 'loading') {
