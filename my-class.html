@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CatchUp</title>
+    <title>CatchUp – My Classes</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -30,30 +30,31 @@
     <main class="main">
       <section class="card card--center">
         <div class="intro">
-          <p class="tagline">Find out what happened in class today.</p>
-          <p class="description">Student updates, Shared anonymously.</p>
+          <p class="tagline">My Classes</p>
+          <p class="description">Manage the classes you're following this semester.</p>
         </div>
-        <form id="search-form">
+
+        <!-- Add New Class Form -->
+        <form id="add-class-form" style="margin-bottom: 24px;">
           <div class="form-row">
-            <select id="university-select" name="university" required>
-              <option value="">Select your university</option>
-              <option value="university1">University of Maryland, Baltimore County</option>
-            </select>
+            <input id="new-course-input" type="text" placeholder="Course code (e.g., CMSC 313)" required/>
           </div>
           <div class="form-row">
-            <input id="course-input" name="course" type="text" placeholder="Enter course code e.g. CMSC 313" required/>
-          </div>
-          <!-- NEW: Professor field -->
-          <div class="form-row">
-            <input id="professor-input" name="professor" type="text" placeholder="Professor name (optional)" />
+            <input id="new-professor-input" type="text" placeholder="Professor name (optional)"/>
           </div>
           <div class="form-row">
-            <button type="submit">Search</button>
+            <button type="submit" class="btn btn-primary">Add Class</button>
           </div>
         </form>
-        <div class="quick-links">
-          <a href="#" id="view-classes-link">View My Classes</a>
-          <a href="#" id="latest-updates-link">Latest Updates</a>
+
+        <!-- My Classes List -->
+        <div id="my-classes-list">
+          <!-- Classes will be inserted here by JavaScript -->
+        </div>
+
+        <div class="quick-links" style="justify-content: center; margin-top: 20px;">
+          <a href="index.html">← Back to Search</a>
+          <a href="latest.html">View Latest Updates</a>
         </div>
       </section>
     </main>
